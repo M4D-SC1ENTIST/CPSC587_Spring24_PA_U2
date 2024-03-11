@@ -33,8 +33,12 @@
 
     let gui = get_default_lil_gui();
 
-    engine.animation_loop(() => {
+    let timeElapsedObj = { timeElapsed: 0 };
+    gui.add(timeElapsedObj, 'timeElapsed').name('Time Elapsed').listen();
 
+    engine.animation_loop(() => {
+        timeElapsedObj.timeElapsed = engine.get_time_elapsed().toFixed(2);
+        refresh_displays(gui);
     });
 
 </script>

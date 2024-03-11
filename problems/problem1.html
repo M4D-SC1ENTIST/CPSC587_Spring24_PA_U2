@@ -21,7 +21,7 @@
 </head>
 <body>
 <script type="module">
-    import {get_default_lil_gui, ThreeEngine} from "../js/utils/utils_three.js";
+    import {get_default_lil_gui, spawn_sphere_specific, set_sphere_specific, ThreeEngine} from "../js/utils/utils_three.js";
 
     // todo: use the gui initialized below to control the position of a 3D sphere.
     // todo: the sphere should be movable along the ranges x: [-2,2], y: [-2, 2], z: [-2, 2].
@@ -30,6 +30,21 @@
     let engine = ThreeEngine.new_default_3d();
 
     let gui = get_default_lil_gui();
+
+    let spherePosition = [[0], [0], [0]];
+    let sphereRadius = 0.04;
+    let sphereColor = 0x000000;
+    let sphereOpacity = 1.0;
+    let sphereIdx = spawn_sphere_specific(engine.scene, spherePosition, sphereRadius, undefined, sphereColor, sphereOpacity);
+
+    let sphereFolder = gui.addFolder('Sphere Position');
+    sphereFolder.add(spherePosition[0], 0, -2, 2).name('X').onChange(updateSpherePosition);
+    sphereFolder.add(spherePosition[1], 0, -2, 2).name('Y').onChange(updateSpherePosition);
+    sphereFolder.add(spherePosition[2], 0, -2, 2).name('Z').onChange(updateSpherePosition);
+
+    function updateSpherePosition() {
+        set_sphere_specific(sphereIdx, spherePosition, sphereRadius, undefined, sphereColor, sphereOpacity);
+    }
 
     engine.animation_loop(() => {
 

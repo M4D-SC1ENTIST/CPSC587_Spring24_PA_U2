@@ -21,12 +21,59 @@
 </head>
 <body>
 <script type="module">
-    import {ThreeEngine} from "../js/utils/utils_three.js";
+    import {ThreeEngine, spawn_sphere_specific, set_sphere_specific, get_default_lil_gui, refresh_displays} from "../js/utils/utils_three.js";
 
     // todo: recreate this visualization, demonstrating your understanding of U(1)
     // todo: https://yale-cpsc-487-587-internal-djrakita-c95fa6c3239a481a48d29a6b0fd.gitlab.io/html/visualizations/point_mapping_2D_complex_numbers_isometry.html
     // todo: (no need to draw the unit circle here)
     // todo: or, feel free to come up with any create visualization here that demonstrates your understanding of U(1)
+
+    let engine = ThreeEngine.new_default_2d();
+
+    let settings = {
+        point_size: 0.05,
+        theta: 0
+    };
+
+    let actions = {
+        reset: function() {
+            settings.theta = 0;
+            refresh_displays(gui);
+        }
+    };
+
+    let gui = get_default_lil_gui();
+    gui.add(settings, 'point_size', 0.01, 0.1).name('Point Size');
+
+    let folder = gui.addFolder('Complex Number Controls');
+    folder.add(settings, 'theta', -Math.PI, Math.PI);
+    folder.add(actions, 'reset').name('Reset');
+
+    let point = [[1], [0]];
+    let pointSphere = spawn_sphere_specific(engine.scene, point, settings.point_size, undefined, 0xff0000, 1.0);
+
+    function map_point_via_complex_number(point, z) {
+        let x = point[0][0];
+        let y = point[1][0];
+        let newX = z[0] * x - z[1] * y;
+        let newY = z[1] * x + z[0] * y;
+        return [[newX], [newY]];
+    }
+
+    engine.animation_loop(function() {
+        let z = [Math.cos(settings.theta), Math.sin(settings.theta)];
+        let c1 = [Math.cos(settings.theta), Math.sin(settings.theta)];
+        let c2 = [-Math.sin(settings.theta), Math.cos(settings.theta)];
+
+        engine.draw_debug_vector([[0], [0]], c1, 0.02, undefined, 0xff3333);
+        engine.draw_debug_vector([[0], [0]], c2, 0.02, undefined, 0x33ff33);
+
+        let mappedPoint = map_point_via_complex_number(point, z);
+
+        set_sphere_specific(pointSphere, mappedPoint, settings.point_size, undefined, 0xff0000, 1.0);
+
+        engine.draw_debug_line([[0], [0]], mappedPoint, false, 0.01, 0x0000ff, 1.0);
+    });
 
 </script>
 </body>

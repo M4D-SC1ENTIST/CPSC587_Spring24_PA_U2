@@ -21,13 +21,59 @@
 </head>
 <body>
 <script type="module">
-    import {ThreeEngine} from "../js/utils/utils_three.js";
+    import {ThreeEngine, spawn_sphere_specific, set_sphere_specific, get_default_lil_gui, refresh_displays} from "../js/utils/utils_three.js";
 
     // todo: recreate this visualization, demonstrating your understanding of SO(2)
     // todo: https://yale-cpsc-487-587-internal-djrakita-c95fa6c3239a481a48d29a6b0fd.gitlab.io/html/visualizations/point_mapping_2D_so2.html
     // todo: (no need to draw the unit circle here)
     // todo: or, feel free to come up with any create visualization here that demonstrates your understanding of SO(2)
 
+    let engine = ThreeEngine.new_default_2d();
+
+    let settings = {
+        point_size: 0.05,
+        theta: 0,
+        determinant_string: 1.0
+    };
+
+    let actions = {
+        reset_matrix: function() {
+            settings.theta = 0;
+            refresh_displays(gui);
+        }
+    };
+
+    let gui = get_default_lil_gui();
+    gui.add(settings, 'point_size', 0.01, 0.1).name('Point Size');
+
+    let folder = gui.addFolder('Matrix Controls');
+    folder.add(settings, 'theta', -Math.PI, Math.PI);
+    folder.add(actions, 'reset_matrix').name('Reset Matrix');
+    folder.add(settings, 'determinant_string').name('Determinant').disable();
+
+    let point = [[1], [0]];
+
+    let pointSphere = spawn_sphere_specific(engine.scene, point, settings.point_size, undefined, 0xff0000, 1.0);
+
+    engine.animation_loop(function() {
+
+        let m = [[Math.cos(settings.theta), -Math.sin(settings.theta)], [Math.sin(settings.theta), Math.cos(settings.theta)]];
+        let c1 = [Math.cos(settings.theta), Math.sin(settings.theta)];
+        let c2 = [-Math.sin(settings.theta), Math.cos(settings.theta)];
+
+        engine.draw_debug_vector([[0], [0]], c1, 0.02, undefined, 0xff3333);
+        engine.draw_debug_vector([[0], [0]], c2, 0.02, undefined, 0x33ff33);
+
+        let determinant = Math.cos(settings.theta) * Math.cos(settings.theta) - (-Math.sin(settings.theta)) * Math.sin(settings.theta);
+        settings.determinant_string = determinant.toFixed(2);
+        refresh_displays(gui);
+
+        let rotatedPoint = math.multiply(m, point);
+
+        set_sphere_specific(pointSphere, rotatedPoint, settings.point_size, undefined, 0xff0000, 1.0);
+
+        engine.draw_debug_line([[0], [0]], rotatedPoint, false, 0.01, 0x0000ff, 1.0);
+    });
 
 </script>
 </body>

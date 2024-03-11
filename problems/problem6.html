@@ -21,12 +21,135 @@
 </head>
 <body>
 <script type="module">
-    import {ThreeEngine} from "../js/utils/utils_three.js";
+    import {ThreeEngine, get_default_lil_gui, refresh_displays, spawn_sphere_specific, set_sphere_specific} from "../js/utils/utils_three.js";
+    import {transpose, add_matrix_matrix, mul_matrix_scalar, mul_matrix_matrix} from "../js/utils/utils_math.js";
 
     // todo: recreate this visualization, demonstrating your understanding of displacement-based distance in SE(2)
     // todo: https://yale-cpsc-487-587-internal-djrakita-c95fa6c3239a481a48d29a6b0fd.gitlab.io/html/visualizations/SE2_distance2.html
     // todo: make sure you are using the displacement-based distance!
     // todo: or, feel free to come up with any create visualization here that demonstrates your understanding of SE(2) distance
+
+    let engine = ThreeEngine.new_default_2d();
+
+    let settings = {
+        point_size: 0.05,
+        tx1: 0,
+        ty1: 0,
+        theta1: 0,
+        tx2: 0,
+        ty2: 0,
+        theta2: 0,
+        distance: 0
+    };
+
+    let actions = {
+        reset1: function() {
+            settings.tx1 = 0;
+            settings.ty1 = 0;
+            settings.theta1 = 0;
+            refresh_displays(gui);
+        },
+        reset2: function() {
+            settings.tx2 = 0;
+            settings.ty2 = 0;
+            settings.theta2 = 0;
+            refresh_displays(gui);
+        }
+    };
+
+    let gui = get_default_lil_gui();
+    gui.add(settings, 'point_size', 0.01, 0.1).name('Point Size');
+
+    let folder1 = gui.addFolder('SE(2) 1 Controls');
+    folder1.add(settings, 'tx1', -2, 2).name('Translation X');
+    folder1.add(settings, 'ty1', -2, 2).name('Translation Y');
+    folder1.add(settings, 'theta1', -Math.PI, Math.PI).name('Rotation');
+    folder1.add(actions, 'reset1').name('Reset');
+
+    let folder2 = gui.addFolder('SE(2) 2 Controls');
+    folder2.add(settings, 'tx2', -2, 2).name('Translation X');
+    folder2.add(settings, 'ty2', -2, 2).name('Translation Y');
+    folder2.add(settings, 'theta2', -Math.PI, Math.PI).name('Rotation');
+    folder2.add(actions, 'reset2').name('Reset');
+
+    gui.add(settings, 'distance').name('Displacement-based Distance').disable();
+
+    let point1 = [[1], [0]];
+    let point2 = [[1], [0]];
+
+    let pointSphere1 = spawn_sphere_specific(engine.scene, point1, settings.point_size, undefined, 0xff0000, 1.0);
+    let pointSphere2 = spawn_sphere_specific(engine.scene, point2, settings.point_size, undefined, 0x0000ff, 1.0);
+
+    function apply_se2_transformation(point, tx, ty, theta) {
+        let cos = Math.cos(theta);
+        let sin = Math.sin(theta);
+        let x = point[0][0];
+        let y = point[1][0];
+        let newX = cos * x - sin * y + tx;
+        let newY = sin * x + cos * y + ty;
+        return [[newX], [newY]];
+    }
+
+    function SE2_displacement_distance(m1, t1, m2, t2) {
+        let m1prime = transpose(m1);
+        let t1prime = mul_matrix_matrix(mul_matrix_scalar(m1prime, -1), t1);
+
+        let m = mul_matrix_matrix(m1prime, m2);
+        let t = add_matrix_matrix(mul_matrix_matrix(m1prime, t2), t1prime);
+
+        let a1 = Math.atan2(m[1][0], m[0][0]);
+
+        let p;
+        let q;
+        if (Math.abs(a1) < 0.01) {
+            p = 1.0 - (Math.pow(a1, 2.0) / 6.0) + (Math.pow(a1, 4.0) / 120.0);
+            q = a1 / 2.0 - (Math.pow(a1, 3.0) / 24.0) + (Math.pow(a1, 5.0) / 720.0);
+        } else {
+            p = (Math.sin(a1) / a1);
+            q = (1.0 - Math.cos(a1)) / a1;
+        }
+
+        let det = 1.0 / (Math.pow(p, 2) + Math.pow(q, 2));
+        let Ainv = mul_matrix_scalar([[p, q], [-q, p]], det);
+        let res = mul_matrix_matrix(Ainv, t);
+
+        let a2 = res[0][0];
+        let a3 = res[1][0];
+
+        return Math.sqrt(Math.pow(a1, 2) + Math.pow(a2, 2) + Math.pow(a3, 2));
+    }
+
+    engine.animation_loop(function() {
+        let m1 = [[Math.cos(settings.theta1), -Math.sin(settings.theta1)], [Math.sin(settings.theta1), Math.cos(settings.theta1)]];
+        let m2 = [[Math.cos(settings.theta2), -Math.sin(settings.theta2)], [Math.sin(settings.theta2), Math.cos(settings.theta2)]];
+
+        let transformedPoint1 = apply_se2_transformation(point1, settings.tx1, settings.ty1, settings.theta1);
+        let transformedPoint2 = apply_se2_transformation(point2, settings.tx2, settings.ty2, settings.theta2);
+
+        let c11 = apply_se2_transformation([[1], [0]], settings.tx1, settings.ty1, settings.theta1);
+        let c12 = apply_se2_transformation([[0], [1]], settings.tx1, settings.ty1, settings.theta1);
+
+        let c21 = apply_se2_transformation([[1], [0]], settings.tx2, settings.ty2, settings.theta2);
+        let c22 = apply_se2_transformation([[0], [1]], settings.tx2, settings.ty2, settings.theta2);
+
+        let origin1 = apply_se2_transformation([[0], [0]], settings.tx1, settings.ty1, settings.theta1);
+        let origin2 = apply_se2_transformation([[0], [0]], settings.tx2, settings.ty2, settings.theta2);
+
+        engine.draw_debug_vector(origin1, c11, 0.02, undefined, 0xff3333);
+        engine.draw_debug_vector(origin1, c12, 0.02, undefined, 0x33ff33);
+
+        engine.draw_debug_vector(origin2, c21, 0.02, undefined, 0xaa4444);
+        engine.draw_debug_vector(origin2, c22, 0.02, undefined, 0x44aa44);
+
+        set_sphere_specific(pointSphere1, transformedPoint1, settings.point_size, undefined, 0xff0000, 1.0);
+        set_sphere_specific(pointSphere2, transformedPoint2, settings.point_size, undefined, 0x0000ff, 1.0);
+
+        let t1 = [[settings.tx1], [settings.ty1]];
+        let t2 = [[settings.tx2], [settings.ty2]];
+
+        settings.distance = SE2_displacement_distance(m1, t1, m2, t2).toFixed(4);
+        refresh_displays(gui);
+    });
 
 </script>
 </body>
